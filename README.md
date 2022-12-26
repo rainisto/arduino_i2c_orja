@@ -49,3 +49,12 @@ There is RO pins for ReadOnly mode (if you want to prevent write commands and ar
 And there are serial speed controlling pins for switching between serial speeds (but most likely you want to stay at 9600 if you want to use the existing software backends).
 
 There is a stl file for simple 3d printed screw-mount which will help protecting against short circuits against metal parts.
+
+# BOM
+
+BOM is around 10-20euroes depending where you source the hardware.
+
+- Arduino Nano (recommended) or Arduino Pro mini (5V 16Mhz)    
+- Serial ttl usb adapter(s) 5V (optional)    
+- 4p dupont cable (for i2c connection)    
+- 2.54mm header angle pins   
