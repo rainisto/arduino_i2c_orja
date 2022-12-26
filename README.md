@@ -31,9 +31,12 @@ In theory it should also work with home assistant integration (but I haven't had
 
 # Building arduino hex firmware on Linux with Docker
 
-./linux_build.sh    
+You need to have Docker installed on your Linux machine and then run:
 
-Resulting .hex files will be found under hex-directory after the build
+- ./linux_build.sh    
+
+Resulting .hex files will be found under hex-directory after the build. You can use for example avrdude to flash it:    
+- avrdude -v -p atmega328p -c arduino -P /dev/ttyUSB0 -b 57600 -D -U flash:w:i2c_rtc_simplified_with_watchdog_nano.ino.hex:i
 
 # Building with Arduino IDE (Linux and Windows):
 Install package depencies (Wire, NeoSWSerial and AltSoftSerial) before the build.
