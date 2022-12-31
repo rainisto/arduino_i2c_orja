@@ -64,3 +64,4 @@ BOM is around 10-20euroes depending where you source the hardware.
 - Serial ttl usb adapter(s) 5V (optional)    
 - 4p dupont cable (for i2c connection)    
 - 2.54mm header angle pins   
+- 220uF capacitor for preventing Nano reseting when starting serial connection.
