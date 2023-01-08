@@ -247,246 +247,90 @@ void loop()
     requestedCmd = -1;   // set requestd cmd to -1 disabling processing in next loop
   }
 
-  // iterative code for each serial interface, I know that there is room for refactoring,  but it works,
-  // so I haven't touched it. If you edit something, you need to edit 3 on each handler times.
-  while (Serial.available() > 0)
-  {
-    char recieved = Serial.read();
-    if (inData.length() > 0 && (recieved == 8 || recieved == 127)) {
-      inData[inData.length()]=0;
-    } else {
-      inData += recieved;
-    }
-    Serial.print(recieved); // local echo
-    // Process message when new line character is recieved
-    if (recieved == '\n' && inData.length()<2) {
-      inData="";
-      recieved=0;
-    }
-    if (recieved == '\r' || recieved == '\n' || inData.length() > 25)
-    {
-      if (recieved == '\r') Serial.println(); // remove if it bothers
-      inData.toUpperCase();
-      if (inData.substring(0,3).equalsIgnoreCase("ATI")) {
-        // Fake that we are ThermIQ device
-        Serial.println(F("ThermIQ2 v.4.30 0011"));
-        Serial.println(F("OK\n"));
-      } else if (inData.substring(0,3).equalsIgnoreCase("ATR")) {
-        int pituus = inData.substring(3).length();
-        byte start = getVal(inData[4]) + (getVal(inData[3]) << 4);
-        if (start > MAX_REGISTER) { Serial.println(F("NO\n")); inData = ""; return; }   // error handling
-        readQueue[start]=readQueue[start]|1;
-        if (pituus > 4) {
-          byte untill = getVal(inData[6]) + (getVal(inData[5]) << 4);
-          if (untill > MAX_REGISTER) { Serial.println(F("NO\n")); inData = ""; return; } // error handling
-          int i;
-          for (i=start+1; i <= untill; i++) {
-            readQueue[i]=readQueue[i]|1;
-          }
-          if (pituus > 8) {
-            start = getVal(inData[8]) + (getVal(inData[7]) << 4);
-            if (start > MAX_REGISTER) { Serial.println(F("NO\n")); inData = ""; return; } // error handling
-            untill = getVal(inData[10]) + (getVal(inData[9]) << 4);
-            if (untill > MAX_REGISTER) { Serial.println(F("NO\n")); inData = ""; return; } // error handling
-            int i;
-            for (i=start; i <= untill; i++) {
-              readQueue[i]=readQueue[i]|1;
-            }
-          }
-        }
-      } else if (inData.substring(0,3).equalsIgnoreCase("ATW")&&(analogRead(A6) > 100)) {
-        // atwxxhhll               Write hhll to register xx
-        int pituus = inData.substring(3).length();
-        if (pituus > 6) {
-          writeAddress = getVal(inData[4]) + (getVal(inData[3]) << 4);
-          if (writeAddress < writeMask) writeAddress = writeAddress + writeMask;
-          writeHigh = getVal(inData[6]) + (getVal(inData[5]) << 4);
-          writeLow = getVal(inData[8]) + (getVal(inData[7]) << 4);
-          writeOrigin = 1;
-        }
-      } else if (inData.substring(0,3).equalsIgnoreCase("ATB")) {
-        Serial.println(F("Not supported in this emulation"));
-        Serial.println(F("NO\n"));
-      } else if (inData.substring(0,3).equalsIgnoreCase("ATP")) {
-        Serial.println(F("Protect pin state"));
-        roPinValue=analogRead(A6);
-        Serial.println(roPinValue);
-        Serial.println(F("OK\n"));
-      } else if (inData.substring(0,4).equalsIgnoreCase("ATL?")) {
-        Serial.println(F("1"));
-        Serial.println(F("OK"));
-      } else if (inData.substring(0,4).equalsIgnoreCase("ATTG")) {
-        Serial.println(F("NO\n"));
-      } else if (inData.substring(0,4).equalsIgnoreCase("ATTS")) {
-        Serial.println(F("NO\n"));
-      } else {
-        Serial.print(F("Received unknown command: "));
-        Serial.println(inData);
-        Serial.println(F("NO\n"));
-      }
-      inData = ""; // Clear recieved buffer
-    }
-  }
-  while (serial2.available() > 0)
-  {
-    char recieved = serial2.read();
-    if (inData2.length() > 0 && (recieved == 8 || recieved == 127)) {
-      inData2[inData2.length()]=0;
-    } else {
-      inData2 += recieved;
-    }
-    serial2.print(recieved);
-    //Serial.print(recieved); // local echo
-    if (recieved == '\n' && inData2.length()<2) {
-      inData2="";
-      recieved=0;
-    }
+  // iterative code for each serial interface
+  handle_serial(Serial , inData , 1);
+  handle_serial(serial2, inData2, 2);
+  handle_serial(serial3, inData3, 4);
 
-    // Process message when new line character is recieved
-    if (recieved == '\r' ||recieved == '\n' || inData2.length() > 25)
-    {
-      if (recieved == '\r') serial2.println(); // remove if it bothers
-      inData2.toUpperCase();
-      if (inData2.substring(0,3).equalsIgnoreCase("ATI")) {
-        // Fake that we are ThermIQ device
-        serial2.println(F("ThermIQ2 v.4.30 0011"));
-        serial2.println(F("OK\n"));
-      } else if (inData2.substring(0,3).equalsIgnoreCase("ATR")) {
-        int pituus = inData2.substring(3).length();
-        byte start = getVal(inData2[4]) + (getVal(inData2[3]) << 4);
-        if (start > MAX_REGISTER) { serial2.println(F("NO\n")); inData2 = ""; return; } // error handling
-        readQueue[start]=readQueue[start]|2;
-        if (pituus > 4) {
-          byte untill = getVal(inData2[6]) + (getVal(inData2[5]) << 4);
-          if (untill > MAX_REGISTER) { serial2.println(F("NO\n")); inData2 = ""; return; } // error handling
-          int i;
-          for (i=start+1; i <= untill; i++) {
-            readQueue[i]=readQueue[i]|2;
-          }
-          if (pituus > 8) {
-            start = getVal(inData2[8]) + (getVal(inData2[7]) << 4);
-            if (start > MAX_REGISTER) { serial2.println(F("NO\n")); inData2 = ""; return; } // error handling
-            untill = getVal(inData2[10]) + (getVal(inData2[9]) << 4);
-            if (untill > MAX_REGISTER) { serial2.println(F("NO\n")); inData2 = ""; return; } // error handling
-            int i;
-            for (i=start; i <= untill; i++) {
-              readQueue[i]=readQueue[i]|2;
-            }
-          }
-        }
-      } else if (inData2.substring(0,3).equalsIgnoreCase("ATW")&&(analogRead(A6) > 100)) {
-        // atwxxhhll               Write hhll to register xx
-        int pituus = inData2.substring(3).length();
-        if (pituus > 6) {
-          writeAddress = getVal(inData2[4]) + (getVal(inData2[3]) << 4);
-          if (writeAddress < writeMask) writeAddress = writeAddress + writeMask;
-          writeHigh = getVal(inData2[6]) + (getVal(inData2[5]) << 4);
-          writeLow = getVal(inData2[8]) + (getVal(inData2[7]) << 4);
-          writeOrigin = 2;
-        }
-      } else if (inData2.substring(0,3).equalsIgnoreCase("ATB")) {
-        serial2.println(F("Not supported in this emulation (serial2)"));
-        serial2.println(F("NO"));
-      } else if (inData.substring(0,3).equalsIgnoreCase("ATP")) {
-        Serial.println(F("Protect pin state"));
-        roPinValue=analogRead(A6);
-        Serial.println(roPinValue);
-        Serial.println(F("OK\n"));
-      } else if (inData2.substring(0,4).equalsIgnoreCase("ATL?")) {
-        serial2.println(F("1"));
-        serial2.println(F("OK"));
-      } else if (inData2.substring(0,4).equalsIgnoreCase("ATTG")) {
-        serial2.println(F("NO\n"));
-      } else if (inData2.substring(0,4).equalsIgnoreCase("ATTS")) {
-        serial2.println(F("NO\n"));
-      } else {
-        serial2.print(F("Received unknown command: "));
-        serial2.println(inData2);
-        serial2.println(F("NO\n"));
-      }
-      inData2 = ""; // Clear recieved buffer
-    }
-  }
-  while (serial3.available() > 0)
+}
+
+void handle_serial(Stream &serialport, String &input_data, int bit_id ) {
+  while (serialport.available() > 0)
   {
-    char recieved = serial3.read();
-    if (inData3.length() > 0 && (recieved == 8 || recieved == 127)) {
-      inData3[inData3.length()]=0;
+    char recieved = serialport.read();
+    if (input_data.length() > 0 && (recieved == 8 || recieved == 127)) {
+      input_data[input_data.length()]=0;
     } else {
-      inData3 += recieved;
+      input_data += recieved;
     }
-    serial3.print(recieved);
-    //Serial.print(recieved); // local echo
-    if (recieved == '\n' && inData3.length()<2) {
-      inData3="";
+    serialport.print(recieved); // local echo
+    // Process message when new line character is recieved
+    if (recieved == '\n' && input_data.length()<2) {
+      input_data="";
       recieved=0;
     }
-    // Process message when new line character is recieved
-    if (recieved == '\r' ||recieved == '\n' || inData3.length() > 25)
+    if (recieved == '\r' || recieved == '\n' || input_data.length() > 25)
     {
-      if (recieved == '\r') serial3.println(); // remove if it bothers
-      inData3.toUpperCase();
-      if (inData3.substring(0,3).equalsIgnoreCase("ATI")) {
+      if (recieved == '\r') serialport.println(); // remove if it bothers
+      input_data.toUpperCase();
+      if (input_data.substring(0,3).equalsIgnoreCase("ATI")) {
         // Fake that we are ThermIQ device
-        serial3.println(F("ThermIQ2 v.4.30 0011"));
-        serial3.println(F("OK\n"));
-      } else if (inData3.substring(0,3).equalsIgnoreCase("ATR")) {
-        int pituus = inData3.substring(3).length();
-        byte start = getVal(inData3[4]) + (getVal(inData3[3]) << 4);
-        if (start > MAX_REGISTER) { serial3.println(F("NO\n")); inData3 = ""; return; } // error handling
-        readQueue[start]=readQueue[start]|4;
+        serialport.println(F("ThermIQ2 v.4.30 0011"));
+        serialport.println(F("OK\n"));
+      } else if (input_data.substring(0,3).equalsIgnoreCase("ATR")) {
+        int pituus = input_data.substring(3).length();
+        byte start = getVal(input_data[4]) + (getVal(input_data[3]) << 4);
+        if (start > MAX_REGISTER) { serialport.println(F("NO\n")); input_data = ""; return; }   // error handling
+        readQueue[start]=readQueue[start]|bit_id;
         if (pituus > 4) {
-          byte untill = getVal(inData3[6]) + (getVal(inData3[5]) << 4);
-          if (untill > MAX_REGISTER) { serial3.println(F("NO\n")); inData3 = ""; return; }; // error handling
+          byte untill = getVal(input_data[6]) + (getVal(input_data[5]) << 4);
+          if (untill > MAX_REGISTER) { serialport.println(F("NO\n")); input_data = ""; return; } // error handling
           int i;
           for (i=start+1; i <= untill; i++) {
-            readQueue[i]=readQueue[i]|4;
+            readQueue[i]=readQueue[i]|bit_id;
           }
           if (pituus > 8) {
-            start = getVal(inData3[8]) + (getVal(inData3[7]) << 4);
-            if (start > MAX_REGISTER) { serial3.println(F("NO\n")); inData3 = ""; return; } // error handling
-            untill = getVal(inData3[10]) + (getVal(inData3[9]) << 4);
-            if (untill > MAX_REGISTER) { serial3.println(F("NO\n")); inData3 = ""; return; } // error handling
+            start = getVal(input_data[8]) + (getVal(input_data[7]) << 4);
+            if (start > MAX_REGISTER) { serialport.println(F("NO\n")); input_data = ""; return; } // error handling
+            untill = getVal(input_data[10]) + (getVal(input_data[9]) << 4);
+            if (untill > MAX_REGISTER) { serialport.println(F("NO\n")); input_data = ""; return; } // error handling
             int i;
             for (i=start; i <= untill; i++) {
-              readQueue[i]=readQueue[i]|4;
+              readQueue[i]=readQueue[i]|bit_id;
             }
           }
         }
-      } else if (inData3.substring(0,3).equalsIgnoreCase("ATW")&&(analogRead(A6) > 100)) {
+      } else if (input_data.substring(0,3).equalsIgnoreCase("ATW")&&(analogRead(A6) > 100)) {
         // atwxxhhll               Write hhll to register xx
-        int pituus = inData3.substring(3).length();
+        int pituus = input_data.substring(3).length();
         if (pituus > 6) {
-          writeAddress = getVal(inData3[4]) + (getVal(inData3[3]) << 4);
+          writeAddress = getVal(input_data[4]) + (getVal(input_data[3]) << 4);
           if (writeAddress < writeMask) writeAddress = writeAddress + writeMask;
-          writeHigh = getVal(inData3[6]) + (getVal(inData3[5]) << 4);
-          writeLow = getVal(inData3[8]) + (getVal(inData3[7]) << 4);
-          writeOrigin = 4;
+          writeHigh = getVal(input_data[6]) + (getVal(input_data[5]) << 4);
+          writeLow = getVal(input_data[8]) + (getVal(input_data[7]) << 4);
+          writeOrigin = bit_id;
         }
-      } else if (inData3.substring(0,3).equalsIgnoreCase("ATB")) {
-        serial3.println(F("Not supported in this emulation (serial3)"));
-        serial3.println(F("NO"));
-      } else if (inData.substring(0,3).equalsIgnoreCase("ATP")) {
-        Serial.println(F("Protect pin state"));
+      } else if (input_data.substring(0,3).equalsIgnoreCase("ATB")) {
+        serialport.println(F("Not supported in this emulation"));
+        serialport.println(F("NO\n"));
+      } else if (input_data.substring(0,3).equalsIgnoreCase("ATP")) {
+        serialport.println(F("Protect pin state"));
         roPinValue=analogRead(A6);
-        Serial.println(roPinValue);
-        Serial.println(F("OK\n"));
-     } else if (inData3.substring(0,4).equalsIgnoreCase("ATL?")) {
-        serial3.println(F("1"));
-        serial3.println(F("OK"));
-      } else if (inData3.substring(0,4).equalsIgnoreCase("ATTG")) {
-        serial3.println(F("NO\n"));
-      } else if (inData3.substring(0,4).equalsIgnoreCase("ATTS")) {
-        serial3.println(F("NO\n"));
+        serialport.println(roPinValue);
+        serialport.println(F("OK\n"));
+      } else if (input_data.substring(0,4).equalsIgnoreCase("ATL?")) {
+        serialport.println(F("1"));
+        serialport.println(F("OK"));
+      } else if (input_data.substring(0,4).equalsIgnoreCase("ATTG")) {
+        serialport.println(F("NO\n"));
+      } else if (input_data.substring(0,4).equalsIgnoreCase("ATTS")) {
+        serialport.println(F("NO\n"));
       } else {
-        serial3.print(F("Received unknown command: "));
-        serial3.println(inData3);
-        serial3.println(F("NO\n"));
+        serialport.print(F("Received unknown command: "));
+        serialport.println(input_data);
+        serialport.println(F("NO\n"));
       }
-      inData3 = ""; // Clear recieved buffer
+      input_data = ""; // Clear recieved buffer
     }
   }
 }
-
-
-
