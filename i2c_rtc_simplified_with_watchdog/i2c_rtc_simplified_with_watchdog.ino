@@ -70,7 +70,7 @@ void setup()
   int i;
 
   // Initialize readQueue
-  for (i=0; i < MAX_REGISTER; i++) {
+  for (i=0; i <= MAX_REGISTER; i++) {
     readQueue[i]=0;
   }
   // config pins
