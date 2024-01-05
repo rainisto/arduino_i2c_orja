@@ -51,7 +51,7 @@ int roPinValue=0;
 
 int okPending=0;
 
-int readQueue[MAX_REGISTER];
+int readQueue[MAX_REGISTER+1];
 
 int argsCnt = 0;                        // how many arguments were passed with given command
 int requestedCmd = -1;                  // which command was requested (if any)
