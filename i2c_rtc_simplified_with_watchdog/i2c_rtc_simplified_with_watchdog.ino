@@ -122,7 +122,7 @@ void receiveEvent(int howMany)
   if (Wire.available()) {
     cmdRcvd = Wire.read();                       // receive first byte - command assumed
     while (Wire.available()) {                   // receive rest of tramsmission from master assuming arguments to the command
-      if (argIndex < I2C_MSG_ARGS_MAX){
+      if (argIndex < I2C_MSG_ARGS_MAX - 1){
         argIndex++;
         i2cArgs[argIndex] = Wire.read();
       } else {
@@ -175,14 +175,14 @@ void loop()
         i2cResponseLen++;
         i2cResponse[i2cResponseLen -1] = i;
         hits=1;
-        okPending=readQueue[i]; // mark okPending to indicate that we are waiting for response for found register number
+        okPending |= readQueue[i]; // accumulate who is waiting for OK (several serial ports can have requests pending)
         break;
       }  
     }
     // if ATW has triggered writeAdress and there is no read requests on the queue, then we can ask for write
     // a value to specific register address
     if (writeAddress && hits==0) {
-      okPending=writeOrigin; // informs which serial interface is waiting OK message for the write command
+      okPending |= writeOrigin; // informs which serial interface is waiting OK message for the write command
       hits=1;
       i2cResponseLen = 0;
       i2cResponseLen++;
@@ -259,7 +259,7 @@ void handle_serial(Stream &serialport, String &input_data, int bit_id ) {
   {
     char recieved = serialport.read();
     if (input_data.length() > 0 && (recieved == 8 || recieved == 127)) {
-      input_data[input_data.length()]=0;
+      input_data.remove(input_data.length()-1); // backspace: delete the last character
     } else {
       input_data += recieved;
     }
